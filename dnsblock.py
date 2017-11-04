@@ -1,15 +1,16 @@
 # pip install pydivert
 # pip install dnslib
 # wireshark filter: not ssdp and not arp and not icmp and not icmpv6 and not igmp and not mdns
-# remember to run as admin
+# script will self elevate to admin if user has permission. double click should launch new window 
 
 import pydivert
 from dnslib import *
 import fnmatch
 import winutil
+import ctypes, sys, os
 
 wu = winutil.WinUtilMixin()  # from fakenet-ng
-showBlocked = True #False
+showBlocked = False
 packet_filter = "outbound and udp.DstPort == 53"
 domains = []
 
@@ -85,15 +86,31 @@ def HandleDNS(w,packet):
                print "%5s | %6s | %10s | %30s | %s" % (str(pid), str(qtype), str(proc), str(qname), status) # str() wrappers handle possibility of None
 
 
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+# ------------------ [ script start ] -----------------
+
+if not is_admin():
+    print("Not running as admin trying to elevate")
+    script = os.path.abspath(sys.argv[0])
+    params = ' '.join([script] + sys.argv[1:])
+    ctypes.windll.shell32.ShellExecuteW(None, u"runas", unicode(sys.executable), unicode(params), None, 1)
+    exit()
+
+# load the config file
 with open('blocked.txt') as f:
     for line in f:
         line = line.strip()
         if len(line) > 0: domains.append(line)
 
-
 print "%d domains loaded, showBlocked = %s, filter = %s - hit ctrl+break to exit" % (len(domains), showBlocked, packet_filter)
 print "%5s | %6s | %10s | %30s | %s" % ("Pid","Type","Process","Domain","Status")
 
+# main packet handler loop
 with pydivert.WinDivert(packet_filter) as w:
     for packet in w:
        #print(packet)
