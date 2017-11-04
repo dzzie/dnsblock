@@ -1,18 +1,26 @@
-# pip install pydivert
-# pip install dnslib
+# dependancies:
+#   pip install pydivert
+#   pip install dnslib
+
+# info:
+#   env: python 2.7 on Win10
+#   options: /show or /hide  - sets showBlocked
+#   script self elevates to admin can just double click to start
+#   more: http://sandsprite.com/blogs/index.php?uid=7&pid=440
+
 # wireshark filter: not ssdp and not arp and not icmp and not icmpv6 and not igmp and not mdns
-# script will self elevate to admin if user has permission. double click should launch new window 
 
 import pydivert
 from dnslib import *
 import fnmatch
 import winutil
 import ctypes, sys, os
+from msvcrt import getch
 
-wu = winutil.WinUtilMixin()  # from fakenet-ng
 showBlocked = False
 packet_filter = "outbound and udp.DstPort == 53"
-domains = []
+wu = winutil.WinUtilMixin()  # from fakenet-ng
+domains = [] # loaded from blocked.txt in script home dir
 
 def shouldBlock(domain):
     for d in domains:
@@ -28,7 +36,6 @@ def hexdump(src, length=16):
         printable = ''.join(["%s" % ((ord(x) <= 127 and FILTER[ord(x)]) or '.') for x in chars])
         lines.append("%04x  %-*s  %s\n" % (c, length*3, hex, printable))
     return ''.join(lines)
-
 
 def HandleDNS(w,packet):
 
@@ -95,11 +102,20 @@ def is_admin():
 # ------------------ [ script start ] -----------------
 
 if not is_admin():
-    print("Not running as admin trying to elevate")
-    script = os.path.abspath(sys.argv[0])
-    params = ' '.join([script] + sys.argv[1:])
-    ctypes.windll.shell32.ShellExecuteW(None, u"runas", unicode(sys.executable), unicode(params), None, 1)
+    #if getattr(sys, 'gettrace', None) != None:
+    #if __debug__: 
+    if "/iside" in sys.argv: # cheating with vs args...
+        print "debugger detected you must run IDE as admin\nPress any key to exit..."
+        getch()
+    else:
+        print("Not running as admin trying to elevate")
+        script = os.path.abspath(sys.argv[0])
+        params = ' '.join([script] + sys.argv[1:])
+        ctypes.windll.shell32.ShellExecuteA(None, "runas", sys.executable, params, None, 1)
     exit()
+
+if "/show" in sys.argv: showBlocked = True
+if "/hide" in sys.argv: showBlocked = False
 
 # load the config file
 with open('blocked.txt') as f:
