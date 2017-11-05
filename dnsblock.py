@@ -17,15 +17,33 @@ import winutil
 import ctypes, sys, os
 from msvcrt import getch
 
-showBlocked = False
+displayBlocked = False
 packet_filter = "outbound and udp.DstPort == 53"
 wu = winutil.WinUtilMixin()  # from fakenet-ng
-domains = [] # loaded from blocked.txt in script home dir
+domains = []      # loaded from config.txt in script home dir
+whiteListed = []  # whitelisted processes
+blackListed = []  # blacklisted processes 
 
-def shouldBlock(domain):
+def blockDomain(domain):
     for d in domains:
         if fnmatch.fnmatch(domain, d): return True
     return False
+
+def isWhiteListed(processName):
+    for d in whiteListed:
+        if fnmatch.fnmatch(processName, d): return True
+    return False    
+
+def isBlackListed(processName):
+    for d in blackListed:
+        if fnmatch.fnmatch(processName, d): return True
+    return False 
+
+def isAdmin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
 
 def hexdump(src, length=16):
     FILTER = ''.join([(len(repr(chr(x))) == 3) and chr(x) or '.' for x in range(256)])
@@ -39,16 +57,16 @@ def hexdump(src, length=16):
 
 def HandleDNS(w,packet):
 
-       err = pid = proc = None
-       status = "OK"
+       err = None
        WINDIVERT_DIRECTION_INBOUND = 1
+       pid = proc = "???"
 
        try:
             pid =  wu.get_pid_port_udp(packet.src_port)
-            proc = wu.get_process_image_filename(pid) if pid else None
+            if pid: proc = wu.get_process_image_filename(pid)
+            else: pid = "???"
        except:
-           # its possible this will fail but its not so critical that we cant do our main task...
-           pass
+            pid = proc = "???"
 
        try:
             d = DNSRecord.parse(packet.payload)    
@@ -62,10 +80,20 @@ def HandleDNS(w,packet):
 
                 #print 'Received %s request for domain \'%s\'.' % (qtype, qname)
 
-                if not shouldBlock(qname):
+                status = "OK"
+                blocked = False
+                if isWhiteListed(proc):
+                    status = "OK (process whitelisted)"
+                elif isBlackListed(proc):
+                    blocked = True
+                    status = "BLOCKED (process blacklisted)"
+                elif blockDomain(qname):
+                    blocked = True
+                    status = "BLOCKED"
+
+                if not blocked:
                     w.send(packet)         # we can let it pass
                 else:
-                    status = "BLOCKED"
                     localhost = "::1" if qtype == "AAAA" else "127.0.0.1"   # ipv6 or ipv4 request?
                     # Create a custom response to the query
                     try:
@@ -87,21 +115,15 @@ def HandleDNS(w,packet):
            print hexdump(packet.payload)
            print "-" * 50
        else:
-           if status == "BLOCKED" and showBlocked == False:
+           if status.find("OK") == -1 and displayBlocked == False:
                pass
            else:
                print "%5s | %6s | %10s | %30s | %s" % (str(pid), str(qtype), str(proc), str(qname), status) # str() wrappers handle possibility of None
 
 
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
 # ------------------ [ script start ] -----------------
 
-if not is_admin():
+if not isAdmin():
     #if getattr(sys, 'gettrace', None) != None:
     #if __debug__: 
     if "/iside" in sys.argv: # cheating with vs args...
@@ -114,22 +136,27 @@ if not is_admin():
         ctypes.windll.shell32.ShellExecuteA(None, "runas", sys.executable, params, None, 1)
     exit()
 
-if "/show" in sys.argv: showBlocked = True
-if "/hide" in sys.argv: showBlocked = False
+if "/show" in sys.argv: displayBlocked = True
+if "/hide" in sys.argv: displayBlocked = False
 
-# load the config file
-with open('blocked.txt') as f:
+# load config
+with open('config.txt') as f:
+    tmpRef = whiteListed
     for line in f:
         line = line.strip()
-        if len(line) > 0: domains.append(line)
+        if len(line) > 0:
+            if line[0] == "#":
+                if line.find("# BLACK LISTED #") >= 0:    tmpRef = blackListed
+                if line.find("# BLOCKED DOMAINS #") >= 0: tmpRef = domains
+            else:
+                tmpRef.append(line)
 
-print "%d domains loaded, showBlocked = %s, filter = %s - hit ctrl+break to exit" % (len(domains), showBlocked, packet_filter)
+print "%d domains, %d/%d white/black listed processes, display blocked domains = %s - press ctrl+break to exit" % (len(domains), len(whiteListed), len(blackListed), displayBlocked)
 print "%5s | %6s | %10s | %30s | %s" % ("Pid","Type","Process","Domain","Status")
 
 # main packet handler loop
 with pydivert.WinDivert(packet_filter) as w:
     for packet in w:
-       #print(packet)
        HandleDNS(w,packet)
        
       

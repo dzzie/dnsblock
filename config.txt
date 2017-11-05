@@ -1,3 +1,15 @@
+
+# lines starting with a # are comments
+# do not remove or reorder the section markers
+# white/black lists are for process names
+
+# WHITE LISTED # 
+white.exe
+
+# BLACK LISTED # 
+black.exe
+
+# BLOCKED DOMAINS #
 *update*microsoft*
 *windowsupdate.com
 *login*live* 

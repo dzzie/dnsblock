@@ -6,8 +6,7 @@ This will have no effect on connections using hardcoded ip addresses.
 As it runs it will show you the name and PID of the responsible process.
 
 it is currently set to block Windows 10 updates, telemetry
-and other Win10 call home features. You could build this out 
-into an ad blocker. 
+and other Win10 call home features. 
 
 You will have to install 2 python modules:
 
@@ -17,9 +16,15 @@ pip install dnslib
 The pydivert/WinDivert library allows for the interception and manipulation of
 network traffic. This is only active while the python script is running. 
 
-Blocked domains have localhost returned in the dns response. 
-Unblocked domains will be allowed to pass through normally. 
-Set showBlocked = True to print blocked requests.
+You configure it through config.txt. Here you can set processes to always be white 
+or black listed or set a list of domains to block. All entries support wildcard matches.
+
+You have to restart the script for config changes to be recgonized. 
+
+Blocked requests have localhost returned in the dns response. 
+Unblocked requests will be allowed to pass through normally. 
+
+to see blocked requests in real time you can use the /show command line option.
 
 The port to process routines in winutil.py, and general know how for this code was 
 taken from the FireEye FakeNet-NG project designed by Peter Kacherginsky
