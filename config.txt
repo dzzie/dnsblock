@@ -4,10 +4,13 @@
 # white/black lists are for process names
 
 # WHITE LISTED # 
-white.exe
+white.exe         # line comment
 
 # BLACK LISTED # 
 black.exe
+
+# WHITELISTED DOMAINS #
+msdn.microsoft.com
 
 # BLOCKED DOMAINS #
 *update*microsoft*
@@ -33,3 +36,6 @@ black.exe
 gfe.nvidia.com
 go.microsoft.com
 www.microsoft.com
+*mp.microsoft*
+*.ws.microsoft.com
+*services.microsoft.com

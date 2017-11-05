@@ -16,13 +16,13 @@ pip install dnslib
 The pydivert/WinDivert library allows for the interception and manipulation of
 network traffic. This is only active while the python script is running. 
 
-You configure it through config.txt. Here you can set processes to always be white 
-or black listed or set a list of domains to block. All entries support wildcard matches.
+You configure it through config.txt. Here you can set processes and domains to be white 
+or black listed. All entries support wildcard matches and are case insensitive.
 
 You have to restart the script for config changes to be recgonized. 
 
 Blocked requests have localhost returned in the dns response. 
-Unblocked requests will be allowed to pass through normally. 
+All other requests will be allowed to pass through normally. 
 
 to see blocked requests in real time you can use the /show command line option.
 

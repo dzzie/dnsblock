@@ -20,22 +20,30 @@ from msvcrt import getch
 displayBlocked = False
 packet_filter = "outbound and udp.DstPort == 53"
 wu = winutil.WinUtilMixin()  # from fakenet-ng
-domains = []      # loaded from config.txt in script home dir
-whiteListed = []  # whitelisted processes
-blackListed = []  # blacklisted processes 
+
+# loaded from config.txt in script home dir
+blackDomains = []     
+whiteDomains = []
+whiteProcs = [] 
+blackProcs = [] 
 
 def blockDomain(domain):
-    for d in domains:
+    for d in blackDomains:
         if fnmatch.fnmatch(domain, d): return True
     return False
 
-def isWhiteListed(processName):
-    for d in whiteListed:
+def isWhiteDomain(domain):
+    for d in whiteDomains:
+        if fnmatch.fnmatch(domain, d): return True
+    return False
+
+def isWhiteProc(processName):
+    for d in whiteProcs:
         if fnmatch.fnmatch(processName, d): return True
     return False    
 
-def isBlackListed(processName):
-    for d in blackListed:
+def isBlackProc(processName):
+    for d in blackProcs:
         if fnmatch.fnmatch(processName, d): return True
     return False 
 
@@ -82,11 +90,13 @@ def HandleDNS(w,packet):
 
                 status = "OK"
                 blocked = False
-                if isWhiteListed(proc):
-                    status = "OK (process whitelisted)"
-                elif isBlackListed(proc):
+                if isWhiteProc(proc):
+                    status = "OK (process whitelist)"
+                elif isBlackProc(proc):
                     blocked = True
-                    status = "BLOCKED (process blacklisted)"
+                    status = "BLOCKED (process blacklist)"
+                elif isWhiteDomain(qname):
+                    status = "OK (domain whitelist)"
                 elif blockDomain(qname):
                     blocked = True
                     status = "BLOCKED"
@@ -141,17 +151,20 @@ if "/hide" in sys.argv: displayBlocked = False
 
 # load config
 with open('config.txt') as f:
-    tmpRef = whiteListed
+    tmpRef = whiteProcs
     for line in f:
         line = line.strip()
         if len(line) > 0:
             if line[0] == "#":
-                if line.find("# BLACK LISTED #") >= 0:    tmpRef = blackListed
-                if line.find("# BLOCKED DOMAINS #") >= 0: tmpRef = domains
+                if line.find("# BLACK LISTED #") >= 0:         tmpRef = blackProcs
+                if line.find("# WHITELISTED DOMAINS #") >= 0:   tmpRef = whiteDomains
+                if line.find("# BLOCKED DOMAINS #") >= 0:      tmpRef = blackDomains
             else:
-                tmpRef.append(line)
+                cmt = line.find("#")
+                if cmt >= 0: line = line[:cmt-1].strip()
+                if len(line) > 0: tmpRef.append(line)
 
-print "%d domains, %d/%d white/black listed processes, display blocked domains = %s - press ctrl+break to exit" % (len(domains), len(whiteListed), len(blackListed), displayBlocked)
+print "%d/%d domains, %d/%d processes, show blocked = %s - press ctrl+break to exit" % (len(blackDomains), len(whiteDomains), len(whiteProcs), len(blackProcs), displayBlocked)
 print "%5s | %6s | %10s | %30s | %s" % ("Pid","Type","Process","Domain","Status")
 
 # main packet handler loop
