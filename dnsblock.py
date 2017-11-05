@@ -128,7 +128,9 @@ def HandleDNS(w,packet):
            if status.find("OK") == -1 and displayBlocked == False:
                pass
            else:
-               print "%5s | %6s | %10s | %30s | %s" % (str(pid), str(qtype), str(proc), str(qname), status) # str() wrappers handle possibility of None
+               #t = time.asctime(time.localtime(time.time()))
+               t = time.strftime("%m/%d/%Y %I:%M %p", time.localtime(time.time()))
+               print "%20s | %5s | %6s | %15s | %30s | %s" % (t, str(pid), str(qtype), str(proc), str(qname), status) # str() wrappers handle possibility of None
 
 
 # ------------------ [ script start ] -----------------
@@ -164,8 +166,8 @@ with open('config.txt') as f:
                 if cmt >= 0: line = line[:cmt-1].strip()
                 if len(line) > 0: tmpRef.append(line)
 
-print "%d/%d domains, %d/%d processes, show blocked = %s - press ctrl+break to exit" % (len(blackDomains), len(whiteDomains), len(whiteProcs), len(blackProcs), displayBlocked)
-print "%5s | %6s | %10s | %30s | %s" % ("Pid","Type","Process","Domain","Status")
+print "%d/%d domains, %d/%d processes, show blocked = %s - press ctrl+break to exit" % (len(whiteDomains), len(blackDomains), len(whiteProcs), len(blackProcs), displayBlocked)
+print "%20s | %5s | %6s | %15s | %30s | %s" % ("Time","Pid","Type","Process","Domain","Status")
 
 # main packet handler loop
 with pydivert.WinDivert(packet_filter) as w:
