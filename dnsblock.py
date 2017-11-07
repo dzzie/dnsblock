@@ -20,6 +20,7 @@ from msvcrt import getch
 displayBlocked = False
 packet_filter = "outbound and udp.DstPort == 53"
 wu = winutil.WinUtilMixin()  # from fakenet-ng
+hLog = 0
 
 # loaded from config.txt in script home dir
 blackDomains = []     
@@ -118,19 +119,16 @@ def HandleDNS(w,packet):
                         err = "Error creating new dns response"
 
        if err != None:
-           print err
-           print "-" * 50
-           print(packet)
-           print "Payload:"
-           print hexdump(packet.payload)
-           print "-" * 50
+           msg = err + "\r\n-" * 50 + str(packet) + "\r\n\r\nPayload:\r\n" + hexdump(packet.payload) + "\r\n-" * 50 + "\r\n"
+           hLog.write(msg)
+           print msg
        else:
-           if status.find("OK") == -1 and displayBlocked == False:
-               pass
-           else:
-               #t = time.asctime(time.localtime(time.time()))
-               t = time.strftime("%m/%d/%Y %I:%M %p", time.localtime(time.time()))
-               print "%20s | %5s | %6s | %15s | %30s | %s" % (t, str(pid), str(qtype), str(proc), str(qname), status) # str() wrappers handle possibility of None
+           t = time.strftime("%m/%d/%Y %I:%M %p", time.localtime(time.time()))
+           msg = "%20s | %5s | %6s | %15s | %30s | %s" % (t, str(pid), str(qtype), str(proc), str(qname), status) # str() wrappers handle possibility of None
+           hLog.write(msg+"\r\n")
+           if status.find("OK") >= 0 or (status.find("OK") == -1 and displayBlocked == True):
+                print msg
+               
 
 
 # ------------------ [ script start ] -----------------
@@ -169,10 +167,17 @@ with open('config.txt') as f:
 print "%d/%d domains, %d/%d processes, show blocked = %s - press ctrl+break to exit" % (len(whiteDomains), len(blackDomains), len(whiteProcs), len(blackProcs), displayBlocked)
 print "%20s | %5s | %6s | %15s | %30s | %s" % ("Time","Pid","Type","Process","Domain","Status")
 
+hLog = open("log.txt","a+",0)
+
 # main packet handler loop
 with pydivert.WinDivert(packet_filter) as w:
-    for packet in w:
-       HandleDNS(w,packet)
+    try:
+        for packet in w:
+           HandleDNS(w,packet)
+    except Exception as e:
+        msg = "Caught error in HandleDNS: " + str(e)  # once in a while getting an access denied error in windivert..
+        hLog.write(msg+"\r\n")
+        print msg
        
       
 

@@ -39,3 +39,7 @@ www.microsoft.com
 *mp.microsoft*
 *.ws.microsoft.com
 *services.microsoft.com
+*mediaredirect*microsoft*
+time.windows.com
+
+
