@@ -66,7 +66,7 @@ def hexdump(src, length=16):
 
 def HandleDNS(w,packet):
 
-       err = None
+       err = qtype = qname = status = None
        WINDIVERT_DIRECTION_INBOUND = 1
        pid = proc = "???"
 
@@ -157,7 +157,7 @@ with open('config.txt') as f:
         if len(line) > 0:
             if line[0] == "#":
                 if line.find("# BLACK LISTED #") >= 0:         tmpRef = blackProcs
-                if line.find("# WHITELISTED DOMAINS #") >= 0:   tmpRef = whiteDomains
+                if line.find("# WHITELISTED DOMAINS #") >= 0:  tmpRef = whiteDomains
                 if line.find("# BLOCKED DOMAINS #") >= 0:      tmpRef = blackDomains
             else:
                 cmt = line.find("#")
@@ -170,14 +170,19 @@ print "%20s | %5s | %6s | %15s | %30s | %s" % ("Time","Pid","Type","Process","Do
 hLog = open("log.txt","a+",0)
 
 # main packet handler loop
-with pydivert.WinDivert(packet_filter) as w:
+while(1):
     try:
-        for packet in w:
-           HandleDNS(w,packet)
+       with pydivert.WinDivert(packet_filter) as w:
+            for packet in w:
+                HandleDNS(w,packet)
     except Exception as e:
-        msg = "Caught error in HandleDNS: " + str(e)  # once in a while getting an access denied error in windivert..
-        hLog.write(msg+"\r\n")
-        print msg
+        #so every once in a while windivert throws an access denied error, which we must recover from
+        #you can enable the below to be notified, watching teh pcap in wireshark I dont see anything funny
+        #and it did not cause us to leak any dns requests so I am just going to disable display of this for now.
+        #t = time.strftime("%m/%d/%Y %I:%M %p", time.localtime(time.time()))
+        #print "%20s %s" % (t,e)
+        pass
+
        
       
 
