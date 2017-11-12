@@ -8,7 +8,9 @@ As it runs it will show you the name and PID of the responsible process.
 it is currently set to block Windows 10 updates, telemetry
 and other Win10 call home features. 
 
-You will have to install 2 python modules:
+This depends on 2 python packages. The script will detect if they are missing
+and can auto install them if you allow it. You can also manually install them
+with pip:
 
 pip install pydivert
 pip install dnslib

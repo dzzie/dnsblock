@@ -1,4 +1,4 @@
-# dependancies:
+# dependancies: (script will detect if missing and can install for you)
 #   pip install pydivert
 #   pip install dnslib
 
@@ -10,12 +10,11 @@
 
 # wireshark filter: not ssdp and not arp and not icmp and not icmpv6 and not igmp and not mdns
 
-import pydivert
-from dnslib import *
 import fnmatch
 import winutil
 import ctypes, sys, os
 from msvcrt import getch
+# we also import pydivert and dnslib in try blocks below to auto install if missing and user ok
 
 displayBlocked = False
 packet_filter = "outbound and udp.DstPort == 53"
@@ -53,6 +52,17 @@ def isAdmin():
         return ctypes.windll.shell32.IsUserAnAdmin()
     except:
         return False
+
+def autoElevate():
+    if "/iside" in sys.argv: # cheating with vs args...
+        print "debugger detected you must run IDE as admin\nPress any key to exit..."
+        getch()
+    else:
+        print("Not running as admin trying to elevate")
+        script = os.path.abspath(sys.argv[0])
+        params = ' '.join([script] + sys.argv[1:])
+        ctypes.windll.shell32.ShellExecuteA(None, "runas", sys.executable, params, None, 1)
+    exit()
 
 def hexdump(src, length=16):
     FILTER = ''.join([(len(repr(chr(x))) == 3) and chr(x) or '.' for x in range(256)])
@@ -134,17 +144,33 @@ def HandleDNS(w,packet):
 # ------------------ [ script start ] -----------------
 
 if not isAdmin():
-    #if getattr(sys, 'gettrace', None) != None:
-    #if __debug__: 
-    if "/iside" in sys.argv: # cheating with vs args...
-        print "debugger detected you must run IDE as admin\nPress any key to exit..."
+    autoElevate()
+
+try:
+    import pydivert
+    divertInstalled = 1
+except:
+    divertInstalled = 0
+
+try:
+    from dnslib import *
+    dlibInstalled = 1
+except:
+    dlibInstalled = 0
+
+if divertInstalled == 0 or dlibInstalled == 0:
+    answer = raw_input("Dependancies are missing can in install them? Y/N:").lower()
+    if len(answer)==0 or answer[0] != "y": exit()
+    try:
+        import pip
+        if divertInstalled == 0: pip.main(['install', "pydivert"])
+        if dlibInstalled == 0:   pip.main(['install', "dnslib"])
+        import pydivert
+        from dnslib import *
+    except Exception as e:
+        print "Error installing press any key to exit" + e
         getch()
-    else:
-        print("Not running as admin trying to elevate")
-        script = os.path.abspath(sys.argv[0])
-        params = ' '.join([script] + sys.argv[1:])
-        ctypes.windll.shell32.ShellExecuteA(None, "runas", sys.executable, params, None, 1)
-    exit()
+        exit()
 
 if "/show" in sys.argv: displayBlocked = True
 if "/hide" in sys.argv: displayBlocked = False
@@ -164,6 +190,7 @@ with open('config.txt') as f:
                 if cmt >= 0: line = line[:cmt-1].strip()
                 if len(line) > 0: tmpRef.append(line)
 
+_=os.system("cls")             
 print "%d/%d domains, %d/%d processes, show blocked = %s - press ctrl+break to exit" % (len(whiteDomains), len(blackDomains), len(whiteProcs), len(blackProcs), displayBlocked)
 print "%20s | %5s | %6s | %15s | %30s | %s" % ("Time","Pid","Type","Process","Domain","Status")
 
